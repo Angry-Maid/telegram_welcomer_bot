@@ -49,14 +49,16 @@ async def welcome_user(username, msg_id):
         if message_count >= 7:
             await bot.sendMessage(chat_id=1,  # Your chat id
                                   text=f"{welcome_message}, {username}! "
-                                       f"Расскажи немного о себе в реплае на это сообщение!",
+                                       f"Расскажи немного о себе в реплае на это сообщение! "
+                                       f"Что умеете в сфере I.T.? Чего ждете от чата?",
                                   reply_to_message_id=msg_id)
             message_count = 0
     else:
         timeout = True
         await set_timeout()
         await bot.sendMessage(chat_id=1,  # Your chat id
-                              text=f"{welcome_message}, {username}! Расскажи немного о себе в реплае на это сообщение!",
+                              text=f"{welcome_message}, {username}! Расскажи немного о себе в реплае на это сообщение! "
+                                   f"Что умеете в сфере I.T.? Чего ждете от чата?",
                               reply_to_message_id=msg_id)
 
 
