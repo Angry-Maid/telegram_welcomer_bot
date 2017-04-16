@@ -1,2 +1,10 @@
 bot_token = ""  # Your bot token (which you got from botfather)
 bot_username = "@"  # Your bot username (for logging)
+
+
+def load_admins():
+    admins_list = []
+    with open('admins.cfg', 'r') as admins_file:
+        for admin_id in admins_file:
+            admins_list.append(int(admin_id))
+    return admins_list
