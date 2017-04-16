@@ -4,9 +4,9 @@ This bot will welcome anyone who will join group or supergroup and will store an
 
 How to install and run bot:
 
-Do `git clone` or download zip and unpack it, then open console and do
+> Make sure that you use Python **3.6** or later
 
-Make sure that you use Python **3.6** or later
+Do `git clone` or download zip and unpack it, then open console and do
 
 `python -m pip install -r requirements.txt`
 
