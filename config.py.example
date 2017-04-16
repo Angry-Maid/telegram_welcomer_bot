@@ -1,0 +1,2 @@
+bot_token = ""  # Your bot token (which you got from botfather)
+bot_username = "@"  # Your bot username (for logging)
