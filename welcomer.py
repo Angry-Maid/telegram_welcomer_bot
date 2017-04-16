@@ -29,16 +29,16 @@ def switch_welcome_message():
     if 0 >= current_hour <= 6:
         return "Доброй ночи, неспящий человек"
     elif 6 > current_hour <= 10:
-        return "Доброго утра"
+        return "Доброго утра,"
     elif 10 > current_hour <= 17:
-        return "Доброго дня"
+        return "Доброго дня,"
     elif 17 > current_hour <= 23:
-        return "Доброго вечера"
+        return "Доброго вечера,"
 
 
 async def welcome_user(username, msg_id, chat_id):
     await bot.sendMessage(chat_id=chat_id,
-                          text=f"{switch_welcome_message()}, {username}! "
+                          text=f"{switch_welcome_message()} {username}! "
                                f"Расскажи немного о себе в реплае на это сообщение! "
                                f"Что умеете в сфере I.T.? Чего ждете от чата?",
                           reply_to_message_id=msg_id)
@@ -52,7 +52,7 @@ async def handle(msg):
                                   text=f"User ID: {msg['reply_to_message']['from']['id']}",
                                   reply_to_message_id=msg['message_id'])
     if 'new_chat_member' in msg and chat_type == 'supergroup':
-        logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
+        print(f"Got new chat member {msg['new_chat_member']['first_name']}")
         if 'username' in msg['new_chat_member']:
             await welcome_user("@" + msg['new_chat_member']['username'],
                                msg['message_id'], chat_id)
@@ -65,7 +65,7 @@ async def handle(msg):
     elif 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:
             if msg['from']['id'] not in got_user_response:
-                logger.info(f"Got response from user: {msg['from']['first_name']}, User ID: {msg['from']['id']}")
+                print(f"Got response from user: {msg['from']['first_name']}, User ID: {msg['from']['id']}")
                 user_ans_curr.execute("INSERT INTO user_answers (id, user_message) VALUES (?, ?)",
                                       (msg['from']['id'], msg['text']))
                 user_ans_db.commit()
@@ -81,8 +81,8 @@ async def handle(msg):
             else:
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ уже есть в базе данных")
-    logger.info(f"Time: {datetime.now().strftime('%H:%M:%S')}\n"
-                f"Chat: {content_type} {chat_type} {chat_id}")
+    print(f"Time: {datetime.now().strftime('%H:%M:%S')}\n"
+          f"Chat: {content_type} {chat_type} {chat_id}")
     pprint(msg)
 
 
