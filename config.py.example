@@ -1,5 +1,6 @@
 bot_token = ""  # Your bot token (which you got from botfather)
 bot_username = "@"  # Your bot username (for logging)
+wait_time = 15  # Time for bot to wait for new users (small kind of antispam protection)
 
 
 def load_admins():

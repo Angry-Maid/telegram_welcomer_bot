@@ -29,13 +29,13 @@ worker_queue = []
 
 def switch_welcome_message():
     current_hour = datetime.now().hour
-    if 0 >= current_hour <= 6:
+    if 0 <= current_hour <= 6:
         return "Доброй ночи, неспящий(ие)"
-    elif 6 > current_hour <= 10:
+    elif 6 < current_hour <= 10:
         return "Доброго утра,"
-    elif 10 > current_hour <= 17:
+    elif 10 < current_hour <= 17:
         return "Доброго дня,"
-    elif 17 > current_hour <= 23:
+    elif 17 < current_hour <= 23:
         return "Доброго вечера,"
 
 
@@ -43,9 +43,9 @@ async def welcome_user(msg_id, chat_id):
     global worker_queue, users
     usernames = []
     while not users.empty():
-        usernames.append(await users.get())
-        print(f"Gor user {usernames[-1]}")
-        await asyncio.sleep(20)
+        while not users.empty():
+            usernames.append(await users.get())
+        await asyncio.sleep(config.wait_time)
     if len(usernames) == 1:
         await bot.sendMessage(chat_id=chat_id,
                               text=f"{switch_welcome_message()} {usernames[0]}! "
