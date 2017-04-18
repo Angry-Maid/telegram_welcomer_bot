@@ -24,7 +24,7 @@ user_ans_curr = user_ans_db.cursor()
 admins_list = config.load_admins()
 got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
 users = asyncio.Queue()
-worker_queue = []
+chat_semaphores = {}
 
 
 def switch_welcome_message():
@@ -40,7 +40,7 @@ def switch_welcome_message():
 
 
 async def welcome_user(msg_id, chat_id):
-    global worker_queue, users
+    global chat_semaphores, users
     usernames = []
     while not users.empty():
         while not users.empty():
@@ -48,22 +48,20 @@ async def welcome_user(msg_id, chat_id):
         await asyncio.sleep(config.wait_time)
     if len(usernames) == 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {usernames[0]}! "
-                                   f"Расскажи немного о себе в реплае на это сообщение! "
-                                   f"Что умеешь в сфере I.T.? Чего ждешь от чата?",
-                                   reply_to_message_id=msg_id)
+                              text=f"{switch_welcome_message()} {usernames[0]}! " + config.welcome_user,
+                              reply_to_message_id=msg_id)
     elif len(usernames) > 1:
         welcome_users = ', '.join(usernames).strip()
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {welcome_users}! "
-                                   f"Расскажите немного о себе в реплае на это сообщение! "
-                                   f"Что умеете в сфере I.T.? Чего ждёте от чата?")
-    worker_queue.pop(0)
+                              text=f"{switch_welcome_message()} {welcome_users}! " + config.welcome_users)
+    chat_semaphores[chat_id] = False
 
 
 async def handle(msg):
-    global worker_queue, users
+    global chat_semaphores, users
     content_type, chat_type, chat_id = telepot.glance(msg)
+    if chat_id not in chat_semaphores:
+        chat_semaphores[chat_id] = False
     if chat_type == 'supergroup' and msg['from']['id'] in admins_list:
         if 'text' in msg:
             if msg['text'] == "/get_id":
@@ -75,18 +73,21 @@ async def handle(msg):
         print(f"Got new chat member {msg['new_chat_member']['first_name']}")
         if 'username' in msg['new_chat_member']:
             await users.put("@" + msg['new_chat_member']['username'])
-            if not worker_queue:
-                worker_queue.append(loop.create_task(welcome_user(msg['message_id'], chat_id)))
+            if not chat_semaphores[chat_id]:
+                loop.create_task(welcome_user(msg['message_id'], chat_id))
+                chat_semaphores[chat_id] = True
                 print("Started coroutine")
         elif 'last_name' in msg['new_chat_member']:
             await users.put(msg['new_chat_member']['first_name'] + " " + msg['new_chat_member']['last_name'])
-            if not worker_queue:
-                worker_queue.append(loop.create_task(welcome_user(msg['message_id'], chat_id)))
+            if not chat_semaphores[chat_id]:
+                loop.create_task(welcome_user(msg['message_id'], chat_id))
+                chat_semaphores[chat_id] = True
                 print("Started coroutine")
         else:
             await users.put(msg['new_chat_member']['first_name'])
-            if not worker_queue:
-                worker_queue.append(loop.create_task(welcome_user(msg['message_id'], chat_id)))
+            if not chat_semaphores[chat_id]:
+                loop.create_task(welcome_user(msg['message_id'], chat_id))
+                chat_semaphores[chat_id] = True
                 print("Started coroutine")
     elif 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:

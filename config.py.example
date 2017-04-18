@@ -1,6 +1,8 @@
 bot_token = ""  # Your bot token (which you got from botfather)
 bot_username = "@"  # Your bot username (for logging)
 wait_time = 15  # Time for bot to wait for new users (small kind of antispam protection)
+welcome_user = f""  # Message to welcome 1 user (new line will be in text like '\n')
+welcome_users = f""  # Message to welcome multiple users
 
 
 def load_admins():
