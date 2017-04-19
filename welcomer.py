@@ -52,11 +52,11 @@ async def welcome_user(msg_id, chat_id):
     logger.debug("Welcoming user(s)")
     if len(usernames) == 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=''.join([f"{switch_welcome_message()} {usernames[0]}!", choice(config.welcome_user)]),
+                              text=' '.join([f"{switch_welcome_message()} {usernames[0]}!", choice(config.welcome_user)]),
                               reply_to_message_id=msg_id)
     elif len(usernames) > 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=''.join([f"{switch_welcome_message()} {', '.join(usernames).strip()}!", choice(config.welcome_users)]))
+                              text=' '.join([f"{switch_welcome_message()} {', '.join(usernames).strip()}!", choice(config.welcome_users)]))
     chat_semaphores[chat_id] = False
 
 
