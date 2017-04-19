@@ -1,8 +1,26 @@
 bot_token = ""  # Your bot token (which you got from botfather)
 bot_username = "@"  # Your bot username (for logging)
-wait_time = 15  # Time for bot to wait for new users (small kind of antispam protection)
-welcome_user = f""  # Message to welcome 1 user (new line will be in text like '\n')
-welcome_users = f""  # Message to welcome multiple users
+wait_time = 15  # Time for bot to wait for new users (for group welcome if multiple users are joining chat in small time)
+
+# For /rules command
+rules = ""
+# The begining of message is always formatted like that "{daytime_message} {username}! " where daytime message
+# is the message which will show depending on time of day on machine which running the bot
+daytime_messages = [
+    "Night",  # 0AM - 6AM
+    "Morning",  # 7AM - 10AM
+    "Day",  # 11AM - 5PM
+    "Evening"  # 6PM - 23PM
+]
+# !!!Seperate multiple variants of welcome message with comma(one of the variants will be chosen to show)
+welcome_user = [
+    f"",
+    f""
+]  # Messages to welcome 1 user (new line will be in text like '\n')
+welcome_users = [
+    f"",
+    f""
+]  # Messages to welcome multiple users
 
 
 def load_admins():

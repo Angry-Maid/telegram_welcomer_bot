@@ -6,6 +6,7 @@ import sqlite3
 from datetime import datetime
 from itertools import chain
 from json import dumps
+from random import choice
 
 import telepot
 import telepot.aio
@@ -13,7 +14,7 @@ import telepot.aio
 import config
 
 
-logging.basicConfig(format='[%(asctime)s] %(levelname)s: %(message)s', level=logging.INFO)
+logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
 logger = logging.getLogger(config.bot_username)
 bot = telepot.aio.Bot(config.bot_token)
 loop = asyncio.get_event_loop()
@@ -30,30 +31,32 @@ chat_semaphores = {}
 def switch_welcome_message():
     current_hour = datetime.now().hour
     if 0 <= current_hour <= 6:
-        return "Доброй ночи, неспящий(ие)"
+        return config.daytime_messages[0]
     elif 6 < current_hour <= 10:
-        return "Доброго утра,"
+        return config.daytime_messages[1]
     elif 10 < current_hour <= 17:
-        return "Доброго дня,"
+        return config.daytime_messages[2]
     elif 17 < current_hour <= 23:
-        return "Доброго вечера,"
+        return config.daytime_messages[3]
 
 
 async def welcome_user(msg_id, chat_id):
     global chat_semaphores, users
     usernames = []
     while not users.empty():
+        logger.debug("Starting to extract users")
         while not users.empty():
             usernames.append(await users.get())
+        logger.debug("Waiting for new users to come in")
         await asyncio.sleep(config.wait_time)
+    logger.debug("Welcoming user(s)")
     if len(usernames) == 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {usernames[0]}! " + config.welcome_user,
+                              text=f"{switch_welcome_message()} {usernames[0]}! " + choice(config.welcome_user),
                               reply_to_message_id=msg_id)
     elif len(usernames) > 1:
-        welcome_users = ', '.join(usernames).strip()
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {welcome_users}! " + config.welcome_users)
+                              text=f"{switch_welcome_message()} {', '.join(usernames).strip()}! " + choice(config.welcome_users))
     chat_semaphores[chat_id] = False
 
 
@@ -69,6 +72,9 @@ async def handle(msg):
                     await bot.sendMessage(chat_id=chat_id,
                                           text=f"User ID: {msg['reply_to_message']['from']['id']}",
                                           reply_to_message_id=msg['message_id'])
+            if msg['text'] == "/rules":
+                await bot.sendMessage(chat_id=chat_id,
+                                      text=config.rules)
     if 'new_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
         if 'username' in msg['new_chat_member']:
@@ -76,19 +82,19 @@ async def handle(msg):
             if not chat_semaphores[chat_id]:
                 loop.create_task(welcome_user(msg['message_id'], chat_id))
                 chat_semaphores[chat_id] = True
-                logger.info("Started coroutine")
+                logger.debug("Started coroutine")
         elif 'last_name' in msg['new_chat_member']:
             await users.put(msg['new_chat_member']['first_name'] + " " + msg['new_chat_member']['last_name'])
             if not chat_semaphores[chat_id]:
                 loop.create_task(welcome_user(msg['message_id'], chat_id))
                 chat_semaphores[chat_id] = True
-                logger.info("Started coroutine")
+                logger.debug("Started coroutine")
         else:
             await users.put(msg['new_chat_member']['first_name'])
             if not chat_semaphores[chat_id]:
                 loop.create_task(welcome_user(msg['message_id'], chat_id))
                 chat_semaphores[chat_id] = True
-                logger.info("Started coroutine")
+                logger.debug("Started coroutine")
     elif 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:
             if msg['from']['id'] not in got_user_response:
