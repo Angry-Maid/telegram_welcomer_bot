@@ -4,22 +4,39 @@ wait_time = 15  # Time for bot to wait for new users (for group welcome if multi
 
 # For /rules command
 rules = ""
-# The begining of message is always formatted like that "{daytime_message} {username}! " where daytime message
+# Hours for each time period, please only enter numbers between 0 and 23 without
+night_time = [0, 1, 2, 3, 4, 5, 6]
+morning_time = [7, 8, 9, 10]
+day_time = [11, 12, 13, 14, 15, 16, 17]
+evening_time = [18, 19, 20, 21, 22, 23]
+# The begining of message is always formatted like that "{daytime_message} {username}!" where daytime message
 # is the message which will show depending on time of day on machine which running the bot
-daytime_messages = [
-    "Night",  # 0AM - 6AM
-    "Morning",  # 7AM - 10AM
-    "Day",  # 11AM - 5PM
-    "Evening"  # 6PM - 23PM
-]
+daytime_messages = {
+    "night": [  # Please don't touch or change hashes(what's before colon sign)
+        "",
+        ""
+    ],
+    "morning": [
+        "",
+        ""
+    ],
+    "day": [
+        "",
+        ""
+    ],
+    "evening": [
+        "",
+        ""
+    ]
+}
 # !!!Seperate multiple variants of welcome message with comma(one of the variants will be chosen to show)
 welcome_user = [
-    f"",
-    f""
+    "",
+    ""
 ]  # Messages to welcome 1 user (new line will be in text like '\n')
 welcome_users = [
-    f"",
-    f""
+    "",
+    ""
 ]  # Messages to welcome multiple users
 
 

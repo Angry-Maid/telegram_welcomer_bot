@@ -30,14 +30,14 @@ chat_semaphores = {}
 
 def switch_welcome_message():
     current_hour = datetime.now().hour
-    if 0 <= current_hour <= 6:
-        return config.daytime_messages[0]
-    elif 6 < current_hour <= 10:
-        return config.daytime_messages[1]
-    elif 10 < current_hour <= 17:
-        return config.daytime_messages[2]
-    elif 17 < current_hour <= 23:
-        return config.daytime_messages[3]
+    if current_hour in config.night_time:
+        return choice(config.daytime_messages['night'])
+    elif current_hour in config.morning_time:
+        return choice(config.daytime_messages['morning'])
+    elif current_hour in config.day_time:
+        return choice(config.daytime_messages['day'])
+    elif current_hour in config.evening_time:
+        return choice(config.daytime_messages['evening'])
 
 
 async def welcome_user(msg_id, chat_id):
@@ -52,11 +52,11 @@ async def welcome_user(msg_id, chat_id):
     logger.debug("Welcoming user(s)")
     if len(usernames) == 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {usernames[0]}! " + choice(config.welcome_user),
+                              text=''.join([f"{switch_welcome_message()} {usernames[0]}!", choice(config.welcome_user)]),
                               reply_to_message_id=msg_id)
     elif len(usernames) > 1:
         await bot.sendMessage(chat_id=chat_id,
-                              text=f"{switch_welcome_message()} {', '.join(usernames).strip()}! " + choice(config.welcome_users))
+                              text=''.join([f"{switch_welcome_message()} {', '.join(usernames).strip()}!", choice(config.welcome_users)]))
     chat_semaphores[chat_id] = False
 
 
