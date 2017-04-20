@@ -24,8 +24,33 @@ user_ans_curr = user_ans_db.cursor()
 
 admins_list = config.load_admins()
 got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
+messages_from_users = list(chain.from_iterable(user_ans_curr.execute("SELECT user_message FROM user_answers")))
 users = asyncio.Queue()
 chat_semaphores = {}
+
+
+def username_from_msg(msg, flag=0):
+    if flag == 0:
+        if 'username' in msg['from']:
+            return f"@{msg['from']['username']}"
+        elif 'last_name' in msg['from']:
+            return f"{msg['from']['first_name']} {msg['from']['last_name']}"
+        else:
+            return f"{msg['from']['first_name']}"
+    elif flag == 1:
+        if 'username' in msg['new_chat_member']:
+            return f"@{msg['new_chat_member']['username']}"
+        elif 'last_name' in msg['new_chat_member']:
+            return f"{msg['new_chat_member']['first_name']} {msg['new_chat_member']['last_name']}"
+        else:
+            return f"{msg['new_chat_member']['first_name']}"
+    elif flag == 2:
+        if 'username' in msg['forward_from']:
+            return f"@{msg['forward_from']['username']}"
+        elif 'last_name' in msg['forward_from']:
+            return f"{msg['forward_from']['first_name']} {msg['forward_from']['last_name']}"
+        else:
+            return f"{msg['forward_from']['first_name']}"
 
 
 def switch_welcome_message():
@@ -77,45 +102,31 @@ async def handle(msg):
                                       text=config.rules)
     if 'new_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
-        if 'username' in msg['new_chat_member']:
-            await users.put("@" + msg['new_chat_member']['username'])
-            if not chat_semaphores[chat_id]:
-                loop.create_task(welcome_user(msg['message_id'], chat_id))
-                chat_semaphores[chat_id] = True
-                logger.debug("Started coroutine")
-        elif 'last_name' in msg['new_chat_member']:
-            await users.put(msg['new_chat_member']['first_name'] + " " + msg['new_chat_member']['last_name'])
-            if not chat_semaphores[chat_id]:
-                loop.create_task(welcome_user(msg['message_id'], chat_id))
-                chat_semaphores[chat_id] = True
-                logger.debug("Started coroutine")
-        else:
-            await users.put(msg['new_chat_member']['first_name'])
-            if not chat_semaphores[chat_id]:
-                loop.create_task(welcome_user(msg['message_id'], chat_id))
-                chat_semaphores[chat_id] = True
-                logger.debug("Started coroutine")
-    elif 'reply_to_message' in msg:
+        await users.put(username_from_msg(msg, flag=1))
+        if not chat_semaphores[chat_id]:
+            loop.create_task(welcome_user(msg['message_id'], chat_id))
+            chat_semaphores[chat_id] = True
+            logger.debug("Started coroutine")
+    if 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:
             if msg['from']['id'] not in got_user_response:
                 logger.info(f"Got response from user: {msg['from']['first_name']}, User ID: {msg['from']['id']}")
-                user_ans_curr.execute("INSERT INTO user_answers (id, user_message) VALUES (?, ?)",
-                                      (msg['from']['id'], msg['text']))
+                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                                      (msg['from']['id'], msg['message_id'], username_from_msg(msg), msg['text']))
                 user_ans_db.commit()
     elif chat_id in admins_list:
         if 'forward_from' in msg:
-            if msg['forward_from']['id'] not in got_user_response:
-                user_ans_curr.execute("INSERT INTO user_answers (id, user_message) VALUES (?, ?)",
-                                      (msg['forward_from']['id'], msg['text']))
+            if msg['text'] not in messages_from_users:
+                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                                      (msg['forward_from']['id'], 0, username_from_msg(msg, flag=2), msg['text']))
                 user_ans_db.commit()
-                got_user_response.append(msg['forward_from']['id'])
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ был успешно записан в базу данных")
             else:
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ уже есть в базе данных")
     logger.info(f"Chat: {content_type} {chat_type} {chat_id}\n"
-                f"{dumps(msg, indent=4)}")
+                f"{dumps(msg, indent=4, ensure_ascii=False)}")
 
 
 def main():
