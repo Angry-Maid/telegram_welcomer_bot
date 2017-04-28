@@ -114,6 +114,7 @@ async def handle(msg):
                 user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
                                       (msg['from']['id'], msg['message_id'], username_from_msg(msg), msg['text']))
                 user_ans_db.commit()
+                got_user_response.append(msg['from']['id'])
     elif chat_id in admins_list:
         if 'forward_from' in msg:
             if msg['text'] not in messages_from_users:
@@ -122,6 +123,7 @@ async def handle(msg):
                 user_ans_db.commit()
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ был успешно записан в базу данных")
+                messages_from_users.append(msg['text'])
             else:
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ уже есть в базе данных")

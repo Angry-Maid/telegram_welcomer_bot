@@ -17,7 +17,7 @@ After that you need to create database file named `answers.db` via sqlite3(in fo
 ```sql lite
 >sqlite3
 sqlite3>.open --new answers.db
-sqlite3>CREATE TABLE user_answers (id int, user_message text);
+sqlite3>CREATE TABLE user_answers (id int, message_id int, username text, user_message text);
 ```
 
 And then you need to write in your bot token (you can get it from **@botfather**) and your bot username. Finally you can run your bot via `python welcome.py`
