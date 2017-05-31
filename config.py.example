@@ -2,7 +2,9 @@ bot_token = ""  # Your bot token (which you got from botfather)
 bot_username = "@"  # Your bot username (for logging)
 wait_time = 15  # Time for bot to wait for new users (for group welcome if multiple users are joining chat in small time)
 wait_response_time  = 150 # Time fot bot to wait for response from user
-check_response = False # Check for a response (ignore respondents?)
+check_response = True # Check for a response (ignore respondents?)
+min_msg_count = 5 # Minimum number of messages to cancel overwriting (negative if ignore).
+clear_prev_users = True # Clear previous users from the list when there is no overwriting?
 
 # For /rules command
 rules = ""

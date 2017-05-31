@@ -27,7 +27,7 @@ admins_list = config.load_admins()
 got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
 messages_from_users = list(chain.from_iterable(user_ans_curr.execute("SELECT user_message FROM user_answers")))
 curr_users, prev_users, time_users = {}, {}, {}
-prev_bot_messages = {}
+prev_bot_messages, chat_messages_count = {}, {}
 chat_semaphores = {}
 
 
@@ -75,7 +75,7 @@ def switch_welcome_message():
 
 
 async def welcome_user(msg_id, chat_id):
-    global chat_semaphores, curr_users, prev_users, time_users, prev_bot_messages
+    global chat_semaphores, curr_users, prev_users, time_users, prev_bot_messages, chat_messages_count
     logger.debug("Waiting for new users to come in")
     await asyncio.sleep(config.wait_time)
     
@@ -86,7 +86,11 @@ async def welcome_user(msg_id, chat_id):
                 if user not in curr_users[chat_id]:
                     update = False
                     break
-            if update: await bot.deleteMessage(prev_bot_messages[chat_id])
+            if update and (config.min_msg_count < 0 or chat_messages_count[chat_id] < config.min_msg_count):
+                await bot.deleteMessage(prev_bot_messages[chat_id])
+            elif config.clear_prev_users:
+                for user in prev_users[chat_id]:
+                    if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
         prev_users[chat_id] = curr_users[chat_id][::]        
         logger.debug("Welcoming user(s)")
         if len(curr_users[chat_id]) == 1:
@@ -97,13 +101,15 @@ async def welcome_user(msg_id, chat_id):
             prev_bot_messages[chat_id] = telepot.message_identifier(await bot.sendMessage(chat_id=chat_id,
                                   text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)])))
     chat_semaphores[chat_id] = False
+    chat_messages_count[chat_id] = 0
 
 
 async def handle(msg):
-    global chat_semaphores, curr_users, time_users
+    global chat_semaphores, curr_users, time_users, chat_messages_count
     content_type, chat_type, chat_id = telepot.glance(msg)
     if chat_id not in curr_users: curr_users[chat_id] = []
     if chat_id not in time_users: time_users[chat_id] = {}
+    if chat_id not in chat_messages_count: chat_messages_count[chat_id] = 0
     copy_curr_users = curr_users[chat_id][::]
     curr_time = time.time()
     for user in copy_curr_users:
@@ -111,6 +117,7 @@ async def handle(msg):
             if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
     if chat_id not in chat_semaphores:
         chat_semaphores[chat_id] = False
+    chat_messages_count[chat_id]+=1
     if chat_type == 'supergroup' and msg['from']['id'] in admins_list:
         if 'text' in msg:
             if msg['text'] == "/get_id":
