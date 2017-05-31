@@ -124,11 +124,12 @@ async def handle(msg):
     if 'new_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
         user = username_from_msg(msg, flag=1)
-        if user not in curr_users[chat_id]: curr_users[chat_id].append(user)
-        if not chat_semaphores[chat_id]:
-            loop.create_task(welcome_user(msg['message_id'], chat_id))
-            chat_semaphores[chat_id] = True
-            logger.debug("Started coroutine")
+        if user not in curr_users[chat_id] and (not config.check_response or msg['new_chat_member']['id'] not in got_user_response):
+            curr_users[chat_id].append(user)
+            if not chat_semaphores[chat_id]:
+                loop.create_task(welcome_user(msg['message_id'], chat_id))
+                chat_semaphores[chat_id] = True
+                logger.debug("Started coroutine")
     if 'left_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got left chat member {msg['left_chat_member']['first_name']}")
         user = username_from_msg(msg, flag=3)
