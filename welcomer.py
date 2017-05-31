@@ -93,10 +93,10 @@ async def welcome_user(msg_id, chat_id):
             prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
                                   text=' '.join([f"{switch_welcome_message()} {curr_users[chat_id][0]}!", choice(config.welcome_user)]),
                                   reply_to_message_id=msg_id)
-        elif len(curr_users[chat_id]) > 1:
+        else:
             prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
                                   text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)]))
-        chat_semaphores[chat_id] = False
+    chat_semaphores[chat_id] = False
 
 
 async def handle(msg):
