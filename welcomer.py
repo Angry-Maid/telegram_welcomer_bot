@@ -86,16 +86,16 @@ async def welcome_user(msg_id, chat_id):
                 if user not in curr_users[chat_id]:
                     update = False
                     break
-            if update: await bot.deleteMessage(telepot.message_identifier(prev_bot_messages[chat_id]))
+            if update: await bot.deleteMessage(prev_bot_messages[chat_id])
         prev_users[chat_id] = curr_users[chat_id][::]        
         logger.debug("Welcoming user(s)")
         if len(curr_users[chat_id]) == 1:
-            prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
+            prev_bot_messages[chat_id] = telepot.message_identifier(await bot.sendMessage(chat_id=chat_id,
                                   text=' '.join([f"{switch_welcome_message()} {curr_users[chat_id][0]}!", choice(config.welcome_user)]),
-                                  reply_to_message_id=msg_id)
+                                  reply_to_message_id=msg_id))
         else:
-            prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
-                                  text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)]))
+            prev_bot_messages[chat_id] = telepot.message_identifier(await bot.sendMessage(chat_id=chat_id,
+                                  text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)])))
     chat_semaphores[chat_id] = False
 
 
