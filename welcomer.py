@@ -26,8 +26,7 @@ user_ans_curr = user_ans_db.cursor()
 admins_list = config.load_admins()
 got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
 messages_from_users = list(chain.from_iterable(user_ans_curr.execute("SELECT user_message FROM user_answers")))
-new_users, left_users = {}, {}
-curr_users, time_users = {}, {}
+curr_users, prev_users, time_users = {}, {}, {}
 prev_bot_messages = {}
 chat_semaphores = {}
 
@@ -76,46 +75,40 @@ def switch_welcome_message():
 
 
 async def welcome_user(msg_id, chat_id):
-    global chat_semaphores, new_users, left_users, curr_users, time_users, prev_bot_messages
-    times = []
-    update = False
-    while not new_users[chat_id].empty() or not left_users[chat_id].empty():
-        logger.debug("Starting to extract users")
-        curr_time = time.time()
-        times.append(curr_time)
-        while not new_users[chat_id].empty():
-            user = await new_users[chat_id].get()
-            curr_users[chat_id].append(user)
-            time_users[chat_id][user] = curr_time
-        while not left_users[chat_id].empty():
-            user = await left_users[chat_id].get()
-            if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
-        for user in curr_users[chat_id]:
-            if time_users[chat_id][user] + config.wait_response_time <= curr_time: await left_users[chat_id].put(user)
-            elif time_users[chat_id][user] not in times: update = True
-        logger.debug("Waiting for new users to come in")
-        await asyncio.sleep(config.wait_time)
-
-    if update: await bot.deleteMessage(telepot.message_identifier(prev_bot_messages[chat_id]))
+    global chat_semaphores, curr_users, prev_users, time_users, prev_bot_messages
+    logger.debug("Waiting for new users to come in")
+    await asyncio.sleep(config.wait_time)
     
-    logger.debug("Welcoming user(s)")
-    if len(curr_users[chat_id]) == 1:
-        prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
-                              text=' '.join([f"{switch_welcome_message()} {curr_users[chat_id][0]}!", choice(config.welcome_user)]),
-                              reply_to_message_id=msg_id)
-    elif len(curr_users[chat_id]) > 1:
-        prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
-                              text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)]))
-    chat_semaphores[chat_id] = False
+    if len(curr_users[chat_id]) > 0:
+        if chat_id in prev_users:
+            update = True
+            for user in prev_users[chat_id]:
+                if user not in curr_users[chat_id]:
+                    update = False
+                    break
+            if update: await bot.deleteMessage(telepot.message_identifier(prev_bot_messages[chat_id]))
+        prev_users[chat_id] = curr_users[chat_id][::]        
+        logger.debug("Welcoming user(s)")
+        if len(curr_users[chat_id]) == 1:
+            prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
+                                  text=' '.join([f"{switch_welcome_message()} {curr_users[chat_id][0]}!", choice(config.welcome_user)]),
+                                  reply_to_message_id=msg_id)
+        elif len(curr_users[chat_id]) > 1:
+            prev_bot_messages[chat_id] = await bot.sendMessage(chat_id=chat_id,
+                                  text=' '.join([f"{switch_welcome_message()} {', '.join(curr_users[chat_id]).strip()}!", choice(config.welcome_users)]))
+        chat_semaphores[chat_id] = False
 
 
 async def handle(msg):
-    global chat_semaphores, new_users, left_users, curr_users, time_users
+    global chat_semaphores, curr_users, time_users
     content_type, chat_type, chat_id = telepot.glance(msg)
-    if chat_id not in new_users: new_users[chat_id] = asyncio.Queue()
-    if chat_id not in left_users: left_users[chat_id] = asyncio.Queue()
     if chat_id not in curr_users: curr_users[chat_id] = []
     if chat_id not in time_users: time_users[chat_id] = {}
+    copy_curr_users = curr_users[chat_id][::]
+    curr_time = time.time()
+    for user in copy_curr_users:
+        if user in time_users[chat_id] and time_users[chat_id][user] + config.wait_response_time <= curr_time:
+            if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
     if chat_id not in chat_semaphores:
         chat_semaphores[chat_id] = False
     if chat_type == 'supergroup' and msg['from']['id'] in admins_list:
@@ -130,14 +123,16 @@ async def handle(msg):
                                       text=config.rules)
     if 'new_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
-        await new_users[chat_id].put(username_from_msg(msg, flag=1))
+        user = username_from_msg(msg, flag=1)
+        if user not in curr_users[chat_id]: curr_users[chat_id].append(user)
         if not chat_semaphores[chat_id]:
             loop.create_task(welcome_user(msg['message_id'], chat_id))
             chat_semaphores[chat_id] = True
             logger.debug("Started coroutine")
     if 'left_chat_member' in msg and chat_type == 'supergroup':
         logger.info(f"Got left chat member {msg['left_chat_member']['first_name']}")
-        await left_users[chat_id].put(username_from_msg(msg, flag=3))
+        user = username_from_msg(msg, flag=3)
+        if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
     if 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:
             if msg['from']['id'] not in got_user_response:
@@ -147,7 +142,7 @@ async def handle(msg):
                                       (msg['from']['id'], msg['message_id'], user, msg['text']))
                 user_ans_db.commit()
                 got_user_response.append(msg['from']['id'])
-                if user in curr_users[chat_id]: left_users[chat_id].put(user)
+                if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
     elif chat_id in admins_list:
         if 'forward_from' in msg:
             if msg['text'] not in messages_from_users:
@@ -158,7 +153,7 @@ async def handle(msg):
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ был успешно записан в базу данных")
                 messages_from_users.append(msg['text'])
-                if user in curr_users[chat_id]: left_users[chat_id].put(user)
+                if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
             else:
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ уже есть в базе данных")
