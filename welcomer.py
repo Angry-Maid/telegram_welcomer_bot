@@ -12,8 +12,6 @@ import time
 import telepot
 import telepot.aio
 
-import time
-
 import config
 
 logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
