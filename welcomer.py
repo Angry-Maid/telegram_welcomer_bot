@@ -23,7 +23,7 @@ user_ans_db = sqlite3.connect("answers.db")
 user_ans_curr = user_ans_db.cursor()
 
 admins_list = config.load_admins()
-got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
+got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT user_id FROM user_answers")))
 messages_from_users = list(chain.from_iterable(user_ans_curr.execute("SELECT user_message FROM user_answers")))
 curr_users, prev_users, time_users = {}, {}, {}
 prev_bot_messages, chat_messages_count = {}, {}
@@ -120,6 +120,18 @@ async def handle(msg):
                     await bot.sendMessage(chat_id=chat_id,
                         text=' '.join([choice(config.welcome_user)]),
                         reply_to_message_id=msg['reply_to_message']['message_id'])
+                if msg['text'] == "Ава расскажи" or msg['text'] == "Ава, расскажи":
+                    logger.info(f"извлекаем из базы всякие теги для {msg['reply_to_message']['from']['id']}")       
+                    string_ = "select distinct Tags.name from user_answers UA inner join tags_user TU on (TU.user_id = UA.user_id) inner join tags Tags on (TU.tags_id = Tags.id) where UA.user_id = " + str(msg['reply_to_message']['from']['id'])
+                    #logger.info(string_)
+                    #user_ans_curr.execute(string_)
+                    tags = list(chain.from_iterable(user_ans_curr.execute(string_)))
+                    #logger.info(user_ans_curr.fetchone()) 
+                    await bot.sendMessage(chat_id=chat_id,
+                        text=msg['reply_to_message']['from']['first_name'] + ': ' + ' '.join(str(value) for value in tags),
+                        reply_to_message_id=msg['message_id'])
+                        #print(cursor.fetchone()) 
+                    user_ans_db.commit()
     if msg['from']['id'] in admins_list:
         if 'reply_to_message' in msg:
             if 'text' in msg:
@@ -174,7 +186,7 @@ async def handle(msg):
                     can_add_web_page_previews=True)
                 logger.info(f"Got response from user: {msg['from']['first_name']}, User ID: {msg['from']['id']}")
                 user = username_from_msg(msg)
-                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                user_ans_curr.execute("INSERT INTO user_answers (user_id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
                                       (msg['from']['id'], msg['message_id'], user, msg['text']))
                 user_ans_db.commit()
                 got_user_response.append(msg['from']['id'])
@@ -183,7 +195,7 @@ async def handle(msg):
         if 'forward_from' in msg:
             if msg['text'] not in messages_from_users:
                 user = username_from_msg(msg, flag=2)
-                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                user_ans_curr.execute("INSERT INTO user_answers (user_id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
                                       (msg['forward_from']['id'], 0, user, msg['text']))
                 user_ans_db.commit()
                 timestamp2 = int(time.time())
