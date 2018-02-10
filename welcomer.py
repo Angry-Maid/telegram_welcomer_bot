@@ -14,7 +14,6 @@ import telepot.aio
 
 import config
 
-
 logging.basicConfig(format='%(asctime)s [%(levelname)s]: %(message)s', level=logging.INFO)
 logger = logging.getLogger(config.bot_username)
 bot = telepot.aio.Bot(config.bot_token)
@@ -24,12 +23,11 @@ user_ans_db = sqlite3.connect("answers.db")
 user_ans_curr = user_ans_db.cursor()
 
 admins_list = config.load_admins()
-got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT id FROM user_answers")))
+got_user_response = list(chain.from_iterable(user_ans_curr.execute("SELECT user_id FROM user_answers")))
 messages_from_users = list(chain.from_iterable(user_ans_curr.execute("SELECT user_message FROM user_answers")))
 curr_users, prev_users, time_users = {}, {}, {}
 prev_bot_messages, chat_messages_count = {}, {}
 chat_semaphores = {}
-
 
 def username_from_msg(msg, flag=0):
     if flag == 0:
@@ -61,7 +59,6 @@ def username_from_msg(msg, flag=0):
         else:
             return f"{msg['left_chat_member']['first_name']}"
 
-
 def switch_welcome_message():
     current_hour = datetime.now().hour
     if current_hour in config.night_time:
@@ -72,7 +69,6 @@ def switch_welcome_message():
         return choice(config.daytime_messages['day'])
     elif current_hour in config.evening_time:
         return choice(config.daytime_messages['evening'])
-
 
 async def welcome_user(msg_id, chat_id):
     global chat_semaphores, curr_users, prev_users, time_users, prev_bot_messages, chat_messages_count
@@ -103,10 +99,9 @@ async def welcome_user(msg_id, chat_id):
     chat_semaphores[chat_id] = False
     chat_messages_count[chat_id] = 0
 
-
 async def handle(msg):
     global chat_semaphores, curr_users, time_users, chat_messages_count
-    content_type, chat_type, chat_id = telepot.glance(msg)
+    content_type, chat_type, chat_id = telepot.glance(msg)    
     if chat_id not in curr_users: curr_users[chat_id] = []
     if chat_id not in time_users: time_users[chat_id] = {}
     if chat_id not in chat_messages_count: chat_messages_count[chat_id] = 0
@@ -117,7 +112,32 @@ async def handle(msg):
             if user in curr_users[chat_id]: curr_users[chat_id].remove(user)
     if chat_id not in chat_semaphores:
         chat_semaphores[chat_id] = False
-    chat_messages_count[chat_id]+=1
+    chat_messages_count[chat_id]+=1    
+    if msg['from']['id'] in admins_list:
+        if 'text' in msg:
+            if 'reply_to_message' in msg:
+                if msg['text'] == "Ава спроси" or msg['text'] == "Ава, спроси":
+                    await bot.sendMessage(chat_id=chat_id,
+                        text=' '.join([choice(config.welcome_user)]),
+                        reply_to_message_id=msg['reply_to_message']['message_id'])
+                if msg['text'] == "Ава расскажи" or msg['text'] == "Ава, расскажи":
+                    logger.info(f"извлекаем из базы всякие теги для {msg['reply_to_message']['from']['id']}")       
+                    string_ = "select distinct Tags.name from user_answers UA inner join tags_user TU on (TU.user_id = UA.user_id) inner join tags Tags on (TU.tags_id = Tags.id) where UA.user_id = " + str(msg['reply_to_message']['from']['id'])
+                    #logger.info(string_)
+                    #user_ans_curr.execute(string_)
+                    tags = list(chain.from_iterable(user_ans_curr.execute(string_)))
+                    #logger.info(user_ans_curr.fetchone()) 
+                    await bot.sendMessage(chat_id=chat_id,
+                        text=msg['reply_to_message']['from']['first_name'] + ': ' + ' '.join(str(value) for value in tags),
+                        reply_to_message_id=msg['message_id'])
+                        #print(cursor.fetchone()) 
+                    user_ans_db.commit()
+    if msg['from']['id'] in admins_list:
+        if 'reply_to_message' in msg:
+            if 'text' in msg:
+                if msg['text'] == "/kick" or msg['text'] == "/ban":
+                    await bot.kickChatMember(chat_id=chat_id,
+                        user_id=msg['reply_to_message']['from']['id'])
     if chat_type == 'supergroup' and msg['from']['id'] in admins_list:
         if 'text' in msg:
             if msg['text'] == "/get_id":
@@ -128,7 +148,19 @@ async def handle(msg):
             if msg['text'] == "/rules":
                 await bot.sendMessage(chat_id=chat_id,
                                       text=config.rules)
+    if 'new_chat_member' in msg and msg['new_chat_member']['id'] == config.Sergey:
+        await bot.sendMessage(chat_id=chat_id,
+            text=f"get ur ass outta here",
+            reply_to_message_id=msg['message_id'])
     if 'new_chat_member' in msg and chat_type == 'supergroup':
+        timestamp = int(time.time())
+        await bot.restrictChatMember(chat_id=chat_id,
+            user_id=msg['new_chat_member']['id'],
+            until_date=timestamp, 
+            can_send_messages=True, 
+            can_send_media_messages=False, 
+            can_send_other_messages=False, 
+            can_add_web_page_previews=False)
         logger.info(f"Got new chat member {msg['new_chat_member']['first_name']}")
         user = username_from_msg(msg, flag=1)
         if user not in curr_users[chat_id] and (not config.check_response or msg['new_chat_member']['id'] not in got_user_response):
@@ -144,9 +176,17 @@ async def handle(msg):
     if 'reply_to_message' in msg:
         if msg['reply_to_message']['from']['username'] == config.bot_username[1:]:
             if msg['from']['id'] not in got_user_response:
+                timestamp1 = int(time.time())
+                await bot.restrictChatMember(chat_id=chat_id,
+                    user_id=msg['from']['id'],
+                    until_date=timestamp1, 
+                    can_send_messages=True, 
+                    can_send_media_messages=True, 
+                    can_send_other_messages=True, 
+                    can_add_web_page_previews=True)
                 logger.info(f"Got response from user: {msg['from']['first_name']}, User ID: {msg['from']['id']}")
                 user = username_from_msg(msg)
-                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                user_ans_curr.execute("INSERT INTO user_answers (user_id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
                                       (msg['from']['id'], msg['message_id'], user, msg['text']))
                 user_ans_db.commit()
                 got_user_response.append(msg['from']['id'])
@@ -155,9 +195,17 @@ async def handle(msg):
         if 'forward_from' in msg:
             if msg['text'] not in messages_from_users:
                 user = username_from_msg(msg, flag=2)
-                user_ans_curr.execute("INSERT INTO user_answers (id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
+                user_ans_curr.execute("INSERT INTO user_answers (user_id, message_id, username, user_message) VALUES (?, ?, ?, ?)",
                                       (msg['forward_from']['id'], 0, user, msg['text']))
                 user_ans_db.commit()
+                timestamp2 = int(time.time())
+                await bot.restrictChatMember(chat_id=config.myChat,
+                    user_id=msg['forward_from']['id'],
+                    until_date=timestamp2, 
+                    can_send_messages=True, 
+                    can_send_media_messages=True, 
+                    can_send_other_messages=True, 
+                    can_add_web_page_previews=True)
                 await bot.sendMessage(chat_id=chat_id,
                                       text="Ответ был успешно записан в базу данных")
                 messages_from_users.append(msg['text'])
@@ -168,12 +216,10 @@ async def handle(msg):
     logger.info(f"Chat: {content_type} {chat_type} {chat_id}\n"
                 f"{dumps(msg, indent=4, ensure_ascii=False)}")
 
-
 def main():
     loop.create_task(bot.message_loop(handle))
 
     loop.run_forever()
-
 
 if __name__ == "__main__":
     main()
