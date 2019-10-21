@@ -7,5 +7,5 @@ packaging==16.8
 pyparsing==2.2.0
 six==1.10.0
 telepot==12.0
-urllib3==1.20
+urllib3==1.24.2
 yarl==0.10.0
